@@ -50,7 +50,6 @@ const Home = () => {
         </div>
       ) : (
         <div>
-          <p>You are not logged in. You can view files but need to log in to upload or delete files.</p>
           <button onClick={handleManageFiles}>Manage Files</button>
           <button onClick={() => navigate('/login')}>Log In</button>
           <button onClick={() => navigate('/signup')}>Sign Up</button>
