@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import CryptoJS from 'crypto-js';
 
+const staticKey = "qJ6W8v9X2aFc3dLn";
+
 const Upload = () => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -16,12 +18,12 @@ const Upload = () => {
     setFile(event.target.files[0]);
   };
 
-  const encryptFile = (file, key) => {
+  const encryptFile = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const wordArray = CryptoJS.lib.WordArray.create(reader.result);
-        const encrypted = CryptoJS.AES.encrypt(wordArray, key).toString();
+        const encrypted = CryptoJS.AES.encrypt(wordArray, staticKey).toString();
         resolve(encrypted);
       };
       reader.onerror = (error) => reject(error);
@@ -38,28 +40,13 @@ const Upload = () => {
     setUploading(true);
 
     try {
-      // Get the current user session
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
+      const encryptedFile = await encryptFile(file);
 
-      if (!user) {
-        alert("You must be logged in to upload files.");
-        setUploading(false);
-        return;
-      }
-
-      const email = user.email;
-
-      // Encrypt the file using the user's email as the key
-      const encryptedFile = await encryptFile(file, email);
-
-      // Create a Blob from the encrypted data
       const blob = new Blob([encryptedFile], { type: file.type });
 
-      // Upload the encrypted file to Supabase Storage
       const { data, error } = await supabase.storage
         .from('files')
-        .upload(`${user.id}/${file.name}`, blob);
+        .upload(file.name, blob);
 
       if (error) {
         throw error;

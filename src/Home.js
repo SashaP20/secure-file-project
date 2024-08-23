@@ -1,4 +1,3 @@
-// src/Home.js
 import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -47,16 +46,14 @@ const Home = () => {
           <p>You are logged in as {user.email}</p>
           <button onClick={handleUpload}>Upload File</button>
           <button onClick={handleManageFiles}>Manage Files</button>
-          <button onClick={handleLogout}>
-        Log Out
-      </button>
+          <button onClick={handleLogout}>Log Out</button>
         </div>
       ) : (
         <div>
-          <p>Please log in or sign up to continue.</p>
+          <p>You are not logged in. You can view files but need to log in to upload or delete files.</p>
+          <button onClick={handleManageFiles}>Manage Files</button>
           <button onClick={() => navigate('/login')}>Log In</button>
           <button onClick={() => navigate('/signup')}>Sign Up</button>
-         
         </div>
       )}
     </div>

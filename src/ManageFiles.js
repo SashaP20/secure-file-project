@@ -3,9 +3,12 @@ import { supabase } from './supabaseClient';
 import CryptoJS from 'crypto-js';
 import { useNavigate } from 'react-router-dom';
 
+const staticKey = "qJ6W8v9X2aFc3dLn"; 
+
 const ManageFiles = () => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRegisteredUser, setIsRegisteredUser] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,14 +17,12 @@ const ManageFiles = () => {
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
 
-        if (!user) {
-          alert("You must be logged in to manage files.");
-          navigate('/login');
-          return;
+        if (user) {
+          setIsRegisteredUser(true);
         }
 
-        const { data, error } = await supabase.storage.from('files').list(user.id + '/');
-        
+        const { data, error } = await supabase.storage.from('files').list();
+
         if (error) {
           throw error;
         }
@@ -36,30 +37,38 @@ const ManageFiles = () => {
     };
 
     fetchFiles();
-  }, [navigate]);
-
+  }, []);
 
   const handleDownload = async (fileName) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      const email = user.email;
-
       const { data, error } = await supabase.storage
         .from('files')
-        .download(`${user.id}/${fileName}`);
+        .download(fileName);
 
       if (error) {
         throw error;
       }
 
-      // Decrypt the file
-      const reader = new FileReader();
-      reader.onload = () => {
-        const encrypted = reader.result;
-        const decrypted = CryptoJS.AES.decrypt(encrypted, email).toString(CryptoJS.enc.Utf8);
+      if (isRegisteredUser) {
+        // Decrypt the file for registered users
+        const reader = new FileReader();
+        reader.onload = () => {
+          const encrypted = reader.result;
+          const decrypted = CryptoJS.AES.decrypt(encrypted, staticKey).toString(CryptoJS.enc.Utf8);
 
-        const blob = new Blob([decrypted], { type: data.type });
+          const blob = new Blob([decrypted], { type: data.type });
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', fileName);
+          document.body.appendChild(link);
+          link.click();
+          link.parentNode.removeChild(link);
+        };
+        reader.readAsText(data);  // Ensure correct reading format
+      } else {
+        // For guest users, just download the encrypted file
+        const blob = new Blob([data], { type: data.type });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -67,8 +76,7 @@ const ManageFiles = () => {
         document.body.appendChild(link);
         link.click();
         link.parentNode.removeChild(link);
-      };
-      reader.readAsText(data);  // Ensure correct reading format
+      }
     } catch (error) {
       console.error('Error downloading file:', error.message);
       alert('Error downloading file.');
@@ -77,18 +85,14 @@ const ManageFiles = () => {
 
   const handleDelete = async (fileName) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-
       const { error } = await supabase.storage
         .from('files')
-        .remove([`${user.id}/${fileName}`]);
+        .remove([fileName]);
 
       if (error) {
         throw error;
       }
 
-      // Update the file list after deletion
       setFiles(files.filter(file => file.name !== fileName));
       alert('File deleted successfully!');
     } catch (error) {
@@ -115,7 +119,7 @@ const ManageFiles = () => {
             <li key={file.name}>
               {file.name}
               <button onClick={() => handleDownload(file.name)}>Download</button>
-              <button onClick={() => handleDelete(file.name)}>Delete</button>
+              {isRegisteredUser && <button onClick={() => handleDelete(file.name)}>Delete</button>}
             </li>
           ))}
         </ul>
